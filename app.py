@@ -70,6 +70,7 @@ if submit:
     else:
         st.warning('temperature is not ok :(')
 
+# тест для наглядности выигрыша по времени при использованием async
 st.subheader('performance test')
 if st.button('performance test'):
     sync_time, _ = test_sync_requests(city, api_key)
