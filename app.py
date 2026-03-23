@@ -1,8 +1,10 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-from api import get_weather, run_async
+import time
+from api import get_weather, run_async, test_sync_requests, run_async_test
 from analysis import add_rolling, seasonal_stats, get_current_season, is_normal
+
 
 st.title("temperature analysis")
 uploaded_file = st.file_uploader("Choose file", type=["csv"])
@@ -44,11 +46,15 @@ if submit:
     if not api_key:
         st.error("enter api key")
         st.stop()
-
+    start_time = time.time()
     if method == "Sync":
         data = get_weather(city, api_key)
     else:
         data = run_async(city, api_key)
+    end_time = time.time()
+    total_time = end_time - start_time
+    st.write(f"request time: {total_time:.4f} seconds")
+
 
     if str(data.get('cod')) == "401":
         st.error(data.get("message", "invalid api key"))
@@ -56,22 +62,21 @@ if submit:
 
     current_temp = data['main']['temp']
     st.success(f"current temperature {current_temp}")
-    month = pd.Timestamp.now().month
-    season_map = {
-        12: 'winter', 1: 'winter', 2: 'winter',
-        3: 'spring', 4: 'spring', 5: 'spring',
-        6: 'summer', 7: 'summer', 8: 'summer',
-        9: 'autumn', 10: 'autumn', 11: 'autumn'
-    }
-    current_season = season_map[month]
+    current_season = get_current_season()
     season_row = season_stats[season_stats['season'] == current_season].iloc[0]
-    lower = season_row['mean'] - 2 * season_row['std']
-    upper = season_row['mean'] + 2 * season_row['std']
 
-    if lower <= current_temp <= upper:
+    if is_normal(current_temp, season_row):
         st.info("temperature is ok")
     else:
         st.warning('temperature is not ok :(')
+
+st.subheader('performance test')
+if st.button('performance test'):
+    sync_time, _ = test_sync_requests(city, api_key)
+    async_time, _ = run_async_test(city, api_key)
+    st.write(f'sync_time: {sync_time:.4f} seconds')
+    st.write(f"async_time: {async_time:.4f} seconds")
+
 
 
 
